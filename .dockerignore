@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+ENV/
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+
+# Datos locales (se crean en runtime)
+data/*.json
+
+# Ambiente local
+.env
+*.log
+
+# Tests
+tests/
+pytest.ini
+.pytest_cache/
+
+# Otros
+*.md
+mod_agent_log_errors/
