@@ -26,9 +26,9 @@ COPY . .
 # Crear directorio de datos
 RUN mkdir -p data
 
-# Puerto (Cloud Run usa $PORT)
-ENV PORT=8000
-EXPOSE 8000
+# Puerto (Cloud Run usa $PORT = 8080)
+ENV PORT=8080
+EXPOSE 8080
 
 # Comando de inicio
 CMD ["python", "main.py"]
