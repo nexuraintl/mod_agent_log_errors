@@ -76,6 +76,7 @@ python main.py
 | `POST` | `/diagnose-manual` | ⚠️ **Solo pruebas** - Enviar log manual |
 | `GET` | `/diagnoses` | Listar diagnósticos |
 | `GET` | `/test-connection` | Probar conexión SSH |
+| `POST` | `/analyze-incident` | 🔗 **Integración mod_agents** - Analiza incidente por entidad |
 
 ### Documentación Interactiva
 

@@ -7,7 +7,7 @@ from unittest.mock import patch, MagicMock
 from fastapi.testclient import TestClient
 from datetime import datetime
 
-from main import app
+from app import app
 from models.log_entry import (
     EntradaLog,
     Diagnostico,
@@ -64,7 +64,7 @@ class TestEndpointsVigilante:
     
     def test_obtener_estado(self, cliente):
         """Verifica endpoint de estado del vigilante."""
-        with patch('main.vigilante') as mock_vigilante:
+        with patch('app.vigilante') as mock_vigilante:
             mock_vigilante.obtener_estado.return_value = {
                 "activo": False,
                 "ultima_linea_leida": 0,
@@ -82,8 +82,8 @@ class TestEndpointsVigilante:
     
     def test_iniciar_monitoreo(self, cliente):
         """Verifica endpoint para iniciar monitoreo."""
-        with patch('main.vigilante') as mock_vigilante:
-            with patch('main.obtener_configuracion') as mock_config:
+        with patch('app.vigilante') as mock_vigilante:
+            with patch('app.obtener_configuracion') as mock_config:
                 mock_config.return_value.check_interval_seconds = 60
                 
                 response = cliente.post("/start")
@@ -94,7 +94,7 @@ class TestEndpointsVigilante:
     
     def test_detener_monitoreo(self, cliente):
         """Verifica endpoint para detener monitoreo."""
-        with patch('main.vigilante') as mock_vigilante:
+        with patch('app.vigilante') as mock_vigilante:
             response = cliente.post("/stop")
             
             assert response.status_code == 200
@@ -107,7 +107,7 @@ class TestEndpointsDiagnostico:
     
     def test_listar_diagnosticos_vacio(self, cliente):
         """Verifica listado vacío de diagnósticos."""
-        with patch('main.ServicioAlmacenamiento') as mock_storage:
+        with patch('app.ServicioAlmacenamiento') as mock_storage:
             mock_storage.return_value.obtener_recientes.return_value = []
             
             response = cliente.get("/diagnoses")
@@ -117,7 +117,7 @@ class TestEndpointsDiagnostico:
     
     def test_listar_diagnosticos_con_datos(self, cliente, registro_mock):
         """Verifica listado con diagnósticos."""
-        with patch('main.ServicioAlmacenamiento') as mock_storage:
+        with patch('app.ServicioAlmacenamiento') as mock_storage:
             mock_storage.return_value.obtener_recientes.return_value = [registro_mock]
             
             response = cliente.get("/diagnoses")
@@ -129,7 +129,7 @@ class TestEndpointsDiagnostico:
     
     def test_contar_diagnosticos(self, cliente):
         """Verifica conteo de diagnósticos."""
-        with patch('main.ServicioAlmacenamiento') as mock_storage:
+        with patch('app.ServicioAlmacenamiento') as mock_storage:
             mock_storage.return_value.contar.return_value = 5
             
             response = cliente.get("/diagnoses/count")
@@ -139,7 +139,7 @@ class TestEndpointsDiagnostico:
     
     def test_limpiar_diagnosticos(self, cliente):
         """Verifica limpieza de diagnósticos."""
-        with patch('main.ServicioAlmacenamiento') as mock_storage:
+        with patch('app.ServicioAlmacenamiento') as mock_storage:
             response = cliente.delete("/diagnoses")
             
             assert response.status_code == 200
@@ -151,7 +151,7 @@ class TestEndpointConexion:
     
     def test_probar_conexion_exitosa(self, cliente):
         """Verifica prueba de conexión exitosa."""
-        with patch('main.ServicioSSH') as mock_ssh:
+        with patch('app.ServicioSSH') as mock_ssh:
             mock_ssh.return_value.probar_conexion.return_value = {
                 "exitoso": True,
                 "hostname": "test-server",
@@ -168,7 +168,7 @@ class TestEndpointConexion:
     
     def test_probar_conexion_fallida(self, cliente):
         """Verifica prueba de conexión fallida."""
-        with patch('main.ServicioSSH') as mock_ssh:
+        with patch('app.ServicioSSH') as mock_ssh:
             mock_ssh.return_value.probar_conexion.return_value = {
                 "exitoso": False,
                 "hostname": None,
