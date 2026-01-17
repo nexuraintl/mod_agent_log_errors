@@ -164,3 +164,55 @@ Responde ÚNICAMENTE con un JSON válido (sin markdown ni texto adicional) con e
             recomendacion="Revisar la conexión con Gemini y reintentar",
             requiere_atencion_inmediata=False
         )
+
+    def analizar_incidente_completo(self, ticket_titulo: str, ticket_texto: str, logs: list[EntradaLog]) -> Diagnostico:
+        """
+        Analiza un incidente completo basado en el ticket y multiples logs.
+        Ideal para cuando hay un volumen alto de errores similares.
+        """
+        # Tomar muestra de logs para no saturar el prompt (primeros 5 + últimos 5)
+        if len(logs) > 10:
+            muestra_logs = logs[:5] + logs[-5:]
+            total_logs_msg = f" (Muestra de 10 logs de un total de {len(logs)})"
+        else:
+            muestra_logs = logs
+            total_logs_msg = ""
+
+        logs_texto = ""
+        for i, log in enumerate(muestra_logs, 1):
+            logs_texto += f"\n--- LOG {i} ---\n{log.raw}\n"
+
+        prompt = f"""
+Eres un experto SRE y desarrollador backend.
+Analiza el siguiente incidente reportado por un usuario y los logs del servidor correlacionados.
+
+1. REPORTE DEL USUARIO (Ticket):
+Título: {ticket_titulo}
+Detalle: {ticket_texto}
+
+2. LOGS DEL SERVIDOR {total_logs_msg}:
+{logs_texto}
+
+Tu tarea es identificar la causa raíz correlacionando el reporte con los logs. 
+Si hay múltiples errores repetidos, generaliza el problema.
+
+Responde ÚNICAMENTE con un JSON válido con esta estructura exacta:
+{{
+    "tipo_error": "tipo corto del error (ej. PHP Fatal, Connection Refused)",
+    "severidad": "crítica" | "alta" | "media" | "baja",
+    "resumen": "Resumen técnico de qué está fallando y cómo se relaciona con el reporte",
+    "causa_probable": "Explicación técnica de la causa raíz",
+    "archivo_afectado": "Ruta del archivo principal causante (si aplica) o null",
+    "linea": número de línea (si aplica) o null,
+    "recomendacion": "Pasos precisos para solucionar el incidente",
+    "requiere_atencion_inmediata": true
+}}
+"""
+        try:
+            respuesta = self._modelo.generate_content(prompt)
+            texto_respuesta = self._limpiar_respuesta_json(respuesta.text.strip())
+            datos = json.loads(texto_respuesta)
+            return self._crear_diagnostico(datos)
+        except Exception as e:
+            return self._diagnostico_error(f"Error en análisis consolidado: {str(e)}")
+
