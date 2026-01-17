@@ -132,6 +132,41 @@ class ServicioSSH:
         resultado = self.ejecutar_comando(comando)
         return int(resultado.strip())
     
+    def buscar_fatal_errors(self, entidad: str, horas: int = 2) -> list[str]:
+        """
+        Busca errores fatales (PHP Fatal error) de una entidad en las últimas N horas.
+        
+        Args:
+            entidad: Keyword/entidad a buscar (ej: 'floridablanca', 'yumbo')
+            horas: Ventana de tiempo hacia atrás en horas (default: 2)
+            
+        Returns:
+            Lista de líneas de log que contienen PHP Fatal error.
+        """
+        directorio = self._config.log_path
+        
+        # 1. cd al directorio
+        # 2. MATCH POR ENTIDAD PRIMERO: busca archivos que contengan la entidad en su nombre
+        # 3. MATCH TIPO ARCHIVO: asegura que sean error.log
+        # 4. MATCH TIEMPO: modificados en últimas N horas
+        # 5. EXCLUSIÓN: ignora preproduccion
+        # 6. CONTENIDO: busca "PHP Fatal error" solo en los archivos encontrados
+        comando = f'''
+        cd {directorio} && \
+        find . -type f -newermt "$(date -d '{horas} hour ago')" \
+            -iname "*{entidad}*" \
+            -name "*error.log*" \
+            -not -path "./preproduccion/*" \
+            -print0 2>/dev/null | \
+        xargs -0 grep -a "PHP Fatal error" 2>/dev/null || true
+        '''
+        
+        resultado = self.ejecutar_comando(comando)
+        
+        # Filtrar líneas vacías y retornar lista
+        lineas = [linea.strip() for linea in resultado.split('\n') if linea.strip()]
+        return lineas
+    
     def probar_conexion(self) -> dict:
         """
         Prueba la conexión SSH y devuelve información del servidor.
