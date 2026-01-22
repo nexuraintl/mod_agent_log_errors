@@ -27,8 +27,8 @@ COPY . .
 RUN mkdir -p data
 
 # Puerto (para pruebas locales)
-ENV PORT=8000
-EXPOSE 8000
+ENV PORT=8080
+EXPOSE 8080
 
 # Comando de inicio
 CMD ["python", "main.py"]
