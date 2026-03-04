@@ -152,7 +152,7 @@ class ServicioSSH:
         # 5. EXCLUSIÓN: ignora preproduccion
         # 6. CONTENIDO: busca "PHP Fatal error" solo en los archivos encontrados
         comando = f'''
-        cd {directorio} && \
+        cd "$(dirname "{directorio}")" && \
         find . -type f -newermt "$(date -d '{horas} hour ago')" \
             -iname "*{entidad}*" \
             -name "*error.log*" \
@@ -160,6 +160,7 @@ class ServicioSSH:
             -print0 2>/dev/null | \
         xargs -0 grep -a "PHP Fatal error|error" 2>/dev/null || true
         '''
+
         
         resultado = self.ejecutar_comando(comando)
         
