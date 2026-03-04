@@ -165,9 +165,10 @@ Responde ÚNICAMENTE con un JSON válido (sin markdown ni texto adicional) con e
             requiere_atencion_inmediata=False
         )
 
-    def analizar_incidente_completo(self, ticket_titulo: str, ticket_texto: str, logs: list[EntradaLog]) -> Diagnostico:
+    def analizar_incidente_completo(self, ticket_titulo: str, ticket_texto: str, 
+                                   diagnostico_inicial: str, logs: list[EntradaLog]) -> Diagnostico:
         """
-        Analiza un incidente completo basado en el ticket y multiples logs.
+        Analiza un incidente completo basado en el ticket, diagnóstico inicial y multiples logs.
         Ideal para cuando hay un volumen alto de errores similares.
         """
         # Tomar muestra de logs para no saturar el prompt (primeros 5 + últimos 5)
@@ -184,13 +185,16 @@ Responde ÚNICAMENTE con un JSON válido (sin markdown ni texto adicional) con e
 
         prompt = f"""
 Eres un experto SRE y desarrollador backend.
-Analiza el siguiente incidente reportado por un usuario y los logs del servidor correlacionados.
+Analiza el siguiente incidente reportado por un usuario, el diagnóstico inicial de la IA y los logs del servidor correlacionados.
 
 1. REPORTE DEL USUARIO (Ticket):
 Título: {ticket_titulo}
 Detalle: {ticket_texto}
 
-2. LOGS DEL SERVIDOR {total_logs_msg}:
+2. DIAGNÓSTICO INICIAL (Asistente Técnico):
+{diagnostico_inicial}
+
+3. LOGS DEL SERVIDOR {total_logs_msg}:
 {logs_texto}
 
 Tu tarea es identificar la causa raíz correlacionando el reporte con los logs. 
