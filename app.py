@@ -3,7 +3,7 @@ Microservicio Monitor de Logs SSH.
 API REST para monitorear logs remotos y generar diagnósticos con Gemini.
 """
 from contextlib import asynccontextmanager
-from typing import Optional
+from typing import Optional, Union, Dict
 from fastapi import FastAPI, HTTPException, Query
 from pydantic import BaseModel
 
@@ -70,12 +70,18 @@ class RespuestaDiagnostico(BaseModel):
 
 class DatosIncidente(BaseModel):
     """Datos del incidente recibidos desde mod_agents."""
-    ticket_id: str
+    ticket_id: Union[str, int]
     ticket_number: Optional[str] = None
     title: str
     ticket_text: str  # Contenido completo del artículo del ticket
-    entity: str       # Entidad/cliente afectado (ya extraída por mod_agents)
-    diagnostico_inicial: Optional[str] = None  # Diagnóstico previo de mod_agents
+    diagnostico: Optional[str] = None  # Diagnóstico previo de mod_agents
+    cliente_real: Optional[dict] = None
+    cliente_znuny: Optional[dict] = None
+    queue: Optional[str] = None
+    state: Optional[str] = None
+    priority: Optional[str] = None
+    created: Optional[str] = None
+    type_id: Optional[int] = None
 
 
 class RespuestaIncidente(BaseModel):
@@ -286,17 +292,22 @@ async def analizar_incidente(datos: DatosIncidente):
     diagnosticos_resultado = []
     
     try:
+        # Extraer entidad desde cliente_real si existe
+        entidad = "No identificado"
+        if datos.cliente_real and isinstance(datos.cliente_real, dict):
+            entidad = datos.cliente_real.get("entidad", "No identificado")
+
         with servicio_ssh:
             # Buscar fatal errors de la entidad en las últimas 2 horas
-            logs_fatales = servicio_ssh.buscar_fatal_errors(datos.entity, horas=2)
+            logs_fatales = servicio_ssh.buscar_fatal_errors(entidad, horas=2)
         
         if not logs_fatales:
             return RespuestaIncidente(
-                ticket_id=datos.ticket_id,
-                entity=datos.entity,
+                ticket_id=str(datos.ticket_id),
+                entity=entidad,
                 logs_encontrados=0,
                 diagnosticos=[],
-                mensaje_resumen=f"No se encontraron errores fatales relacionados con '{datos.entity}' en las últimas 2 horas."
+                mensaje_resumen=f"No se encontraron errores fatales relacionados con '{entidad}' en las últimas 2 horas."
             )
         
         # Parsear todos los logs primero
@@ -321,6 +332,7 @@ async def analizar_incidente(datos: DatosIncidente):
             diagnostico_consolidado = gemini.analizar_incidente_completo(
                 ticket_titulo=datos.title,
                 ticket_texto=datos.ticket_text,
+                diagnostico_inicial=datos.diagnostico,
                 logs=logs_procesados
             )
             
@@ -360,8 +372,8 @@ async def analizar_incidente(datos: DatosIncidente):
             mensaje_resumen = f"Se encontraron {len(logs_fatales)} logs pero no pudieron ser parseados correctamente."
         
         return RespuestaIncidente(
-            ticket_id=datos.ticket_id,
-            entity=datos.entity,
+            ticket_id=str(datos.ticket_id),
+            entity=entidad,
             logs_encontrados=len(logs_fatales),
             diagnosticos=diagnosticos_resultado,
             mensaje_resumen=mensaje_resumen
