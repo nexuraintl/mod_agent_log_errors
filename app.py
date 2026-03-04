@@ -75,6 +75,7 @@ class DatosIncidente(BaseModel):
     title: str
     ticket_text: str  # Contenido completo del artículo del ticket
     diagnostico: Optional[str] = None  # Diagnóstico previo de mod_agents
+    entity: Optional[str] = None  # <--- CAMBIO: Se agregó el campo entity
     cliente_real: Optional[dict] = None
     cliente_znuny: Optional[dict] = None
     queue: Optional[str] = None
@@ -208,54 +209,6 @@ async def limpiar_diagnosticos():
     return {"mensaje": "Todos los diagnósticos han sido eliminados"}
 
 
-class LogManual(BaseModel):
-    """Log enviado manualmente para diagnóstico."""
-    log: str
-
-
-@app.post("/diagnose-manual", response_model=RegistroDiagnostico, tags=["Diagnóstico"])
-async def diagnosticar_manual(datos: LogManual):
-    """
-    ⚠️ SOLO PARA PRUEBAS - NO USAR EN PRODUCCIÓN
-    
-    Envía un log manualmente y obtiene el diagnóstico de Gemini.
-    Útil para probar sin conexión SSH.
-    
-    Ejemplo de log:
-    2026/01/02 08:50:24 [error] 1641#1641: *13100 PHP Fatal error: ...
-    """
-    from datetime import datetime
-    from uuid import uuid4
-    from services.log_parser import ParseadorLogs
-    from services.gemini_service import ServicioGemini
-    
-    parseador = ParseadorLogs()
-    gemini = ServicioGemini()
-    almacenamiento = ServicioAlmacenamiento()
-    
-    # Parsear el log
-    entrada = parseador.parsear_linea(datos.log)
-    
-    if not entrada:
-        raise HTTPException(status_code=400, detail="Log inválido. Formato esperado: YYYY/MM/DD HH:MM:SS [level] ...")
-    
-    # Diagnosticar con Gemini
-    diagnostico = gemini.diagnosticar(entrada)
-    
-    # Crear registro
-    registro = RegistroDiagnostico(
-        id=str(uuid4()),
-        fecha_procesamiento=datetime.now(),
-        log=entrada,
-        diagnostico=diagnostico
-    )
-    
-    # Guardar
-    almacenamiento.guardar(registro)
-    
-    return registro
-
-
 @app.get("/test-connection", response_model=RespuestaConexion, tags=["Sistema"])
 async def probar_conexion():
     """
@@ -292,10 +245,11 @@ async def analizar_incidente(datos: DatosIncidente):
     diagnosticos_resultado = []
     
     try:
-        # Extraer entidad desde cliente_real si existe
-        entidad = "No identificado"
-        if datos.cliente_real and isinstance(datos.cliente_real, dict):
-            entidad = datos.cliente_real.get("entidad", "No identificado")
+        # CAMBIO: Extraer entidad verificando los dos posibles campos
+        entidad = datos.entity
+        if not entidad or entidad == "No identificado":
+            if datos.cliente_real and isinstance(datos.cliente_real, dict):
+                entidad = datos.cliente_real.get("entidad", "No identificado")
 
         with servicio_ssh:
             # Buscar fatal errors de la entidad en las últimas 2 horas
@@ -359,7 +313,7 @@ async def analizar_incidente(datos: DatosIncidente):
         
         # Generar mensaje resumen para Znuny
         if diagnosticos_resultado:
-            resumen_partes = [f"Se encontraron {len(diagnosticos_resultado)} errores fatales de '{datos.entity}':"]
+            resumen_partes = [f"Se encontraron {len(diagnosticos_resultado)} errores fatales de '{entidad}':"]
             for i, diag in enumerate(diagnosticos_resultado[:5], 1):  # Limitar a 5 en resumen
                 resumen_partes.append(f"\n{i}. {diag.diagnostico.tipo_error}: {diag.diagnostico.resumen}")
             
@@ -394,4 +348,3 @@ if __name__ == "__main__":
     import uvicorn
     port = int(os.environ.get("PORT", 8080))
     uvicorn.run(app, host="0.0.0.0", port=port)
-
