@@ -268,12 +268,11 @@ async def analizar_incidente(datos: DatosIncidente):
         logs_procesados = []
         for log_linea in logs_fatales:
             # Remover prefijo de archivo si existe (grep output)
-            if ':' in log_linea and log_linea.startswith('./'):
-                import re
-                match = re.search(r':(\d{4}/\d{2}/\d{2})', log_linea)
-                if match:
-                    idx = log_linea.find(match.group(0))
-                    log_linea = log_linea[idx + 1:]
+            if ':' in log_linea:
+              
+                partes = log_linea.split(':', 1)
+                if '/' in partes[0] or '.' in partes[0]:
+                    log_linea = partes[1].strip()
             
             entrada = parseador.parsear_linea(log_linea)
             if entrada:
