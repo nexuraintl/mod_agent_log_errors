@@ -33,7 +33,7 @@ end
 # Unset irrelevant variables.
 deactivate nondestructive
 
-set -gx VIRTUAL_ENV /home/usuario/Documentos/error_logs/venv
+set -gx VIRTUAL_ENV /home/usuario/proyectos_nexura_ia/agente-znunny/mod-agente-log-errors/venv
 
 set -gx _OLD_VIRTUAL_PATH $PATH
 set -gx PATH "$VIRTUAL_ENV/"bin $PATH

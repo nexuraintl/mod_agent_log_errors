@@ -30,3 +30,12 @@ pytest.ini
 # Otros
 *.md
 mod_agent_log_errors/
+
+# Ignora la carpeta de datos completa (no solo los JSON)
+data/
+
+# CI/CD (No se necesita dentro del contenedor)
+.azure-pipelines.yml
+
+# Muy importante: Ignora el archivo .env real
+.env
