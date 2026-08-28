@@ -28,7 +28,8 @@ class Configuracion(BaseSettings):
     
     # Gemini
     gemini_api_key: str = Field(..., alias="GEMINI_API_KEY")
-    gemini_model: str = Field("gemini-2.0-flash", alias="GEMINI_MODEL")
+    # gemini-2.0-flash fue retirado (shutdown); gemini-3.6-flash es el estable vigente.
+    gemini_model: str = Field("gemini-3.6-flash", alias="GEMINI_MODEL")
     
     # Almacenamiento
     diagnoses_file: str = Field("data/diagnoses.json", alias="DIAGNOSES_FILE")

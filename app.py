@@ -2,6 +2,7 @@
 Microservicio Monitor de Logs SSH.
 API REST para monitorear logs remotos y generar diagnósticos con Gemini.
 """
+import logging
 from contextlib import asynccontextmanager
 from typing import Optional, Union, Dict
 from fastapi import FastAPI, HTTPException, Query
@@ -12,6 +13,16 @@ from services.ssh_service import ServicioSSH
 from services.storage_service import ServicioAlmacenamiento
 from services.log_watcher import VigilanteLogs
 from models.log_entry import RegistroDiagnostico
+
+
+# Sin basicConfig el root logger queda en WARNING y todo logger.info() del
+# servicio se descarta antes de llegar a Cloud Logging.
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s [%(name)s] %(message)s",
+)
+
+logger = logging.getLogger(__name__)
 
 
 # Instancia global del vigilante
@@ -281,7 +292,10 @@ async def analizar_incidente(datos: DatosIncidente):
         # Estrategia de Diagnóstico
         if len(logs_procesados) > 10:
             # ESTRATEGIA MASIVA: Diagnóstico consolidado
-            print(f"Modo Masivo: {len(logs_procesados)} logs encontrados. Generando resumen consolidado.")
+            logger.info(
+                "Modo Masivo: %d logs encontrados. Generando resumen consolidado.",
+                len(logs_procesados),
+            )
             diagnostico_consolidado = gemini.analizar_incidente_completo(
                 ticket_titulo=datos.title,
                 ticket_texto=datos.ticket_text,

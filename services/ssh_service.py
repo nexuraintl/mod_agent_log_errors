@@ -2,9 +2,12 @@
 Servicio de conexión SSH.
 Gestiona la conexión al servidor remoto y la lectura de archivos de log.
 """
+import logging
 import paramiko
 from typing import Optional
 from config import obtener_configuracion
+
+logger = logging.getLogger(__name__)
 
 
 class ServicioSSH:
@@ -107,7 +110,7 @@ class ServicioSSH:
         """
         # Obtener el archivo más reciente del directorio
         ruta_log = self.obtener_archivo_mas_reciente()
-        print(f"Leyendo archivo: {ruta_log}")
+        logger.info("Leyendo archivo: %s", ruta_log)
         
         if desde_linea > 0:
             comando = f"tail -n +{desde_linea + 1} {ruta_log}"
