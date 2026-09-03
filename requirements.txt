@@ -16,6 +16,9 @@ pydantic==2.5.3
 pydantic-settings==2.1.0
 python-dotenv==1.0.0
 
+# Base de datos de zonas horarias (la imagen slim no trae /usr/share/zoneinfo)
+tzdata==2024.1
+
 # Testing
 pytest==7.4.4
 pytest-asyncio==0.23.3

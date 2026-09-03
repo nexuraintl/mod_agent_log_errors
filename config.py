@@ -22,7 +22,11 @@ class Configuracion(BaseSettings):
     
     # Ruta del log remoto
     log_path: str = Field("/var/log/nginx/error.log", alias="LOG_PATH")
-    
+
+    # Zona horaria en la que el server de logs escribe los timestamps.
+    # El contenedor corre en UTC; se usa para filtrar por la ventana de tiempo.
+    tz_logs: str = Field("America/Bogota", alias="TZ_LOGS")
+
     # Intervalo de verificación en segundos
     check_interval_seconds: int = Field(60, alias="CHECK_INTERVAL_SECONDS")
     

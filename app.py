@@ -245,7 +245,7 @@ async def analizar_incidente(datos: DatosIncidente):
     - Búsqueda de logs (grep)
     - Diagnóstico con Gemini de cada log encontrado
     """
-    from datetime import datetime, timedelta
+    from datetime import datetime, timedelta, timezone
     from uuid import uuid4
     from services.log_parser import ParseadorLogs
     from services.gemini_service import ServicioGemini
@@ -293,7 +293,18 @@ async def analizar_incidente(datos: DatosIncidente):
         # archivo, no a cada línea: los archivos se escriben de forma continua y
         # el grep devuelve también errores viejos. Filtrar por el timestamp real
         # de cada entrada.
-        umbral = datetime.now() - timedelta(hours=2)
+        # El parser produce timestamps naive en la hora local del server de logs
+        # (America/Bogota), mientras el contenedor corre en UTC: el corte se
+        # calcula en esa misma zona para no descartar líneas por el desfase.
+        # Si falta la base de zonas horarias se usa un offset fijo (Colombia no
+        # tiene horario de verano).
+        cfg = obtener_configuracion()
+        try:
+            from zoneinfo import ZoneInfo
+            ahora_local = datetime.now(ZoneInfo(getattr(cfg, "tz_logs", "America/Bogota")))
+        except Exception:
+            ahora_local = datetime.now(timezone.utc) + timedelta(hours=-5)
+        umbral = ahora_local.replace(tzinfo=None) - timedelta(hours=2)
         parseados_total = len(logs_procesados)
         logs_procesados = [e for e in logs_procesados if e.timestamp and e.timestamp >= umbral]
 
