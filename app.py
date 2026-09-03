@@ -245,6 +245,7 @@ async def analizar_incidente(datos: DatosIncidente):
     - Búsqueda de logs (grep)
     - Diagnóstico con Gemini de cada log encontrado
     """
+    import re
     from datetime import datetime, timedelta, timezone
     from uuid import uuid4
     from services.log_parser import ParseadorLogs
@@ -278,13 +279,12 @@ async def analizar_incidente(datos: DatosIncidente):
         # Parsear todos los logs primero
         logs_procesados = []
         for log_linea in logs_fatales:
-            # Remover prefijo de archivo si existe (grep output)
-            if ':' in log_linea:
-              
-                partes = log_linea.split(':', 1)
-                if '/' in partes[0] or '.' in partes[0]:
-                    log_linea = partes[1].strip()
-            
+            # grep puede anteponer "archivo:" cuando hay varios ficheros;
+            # nos quedamos desde el timestamp del log en adelante.
+            m = re.search(r"\d{4}/\d{2}/\d{2} \d{2}:\d{2}:\d{2} .*", log_linea)
+            if m:
+                log_linea = m.group(0)
+
             entrada = parseador.parsear_linea(log_linea)
             if entrada:
                 logs_procesados.append(entrada)

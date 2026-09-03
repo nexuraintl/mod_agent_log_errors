@@ -181,7 +181,7 @@ class ServicioSSH:
             -iname "*error.log*" \
             -not -path "*preprod*" \
             -print0 2>/dev/null | \
-        xargs -0 -r grep -aEH "PHP Fatal error" 2>/dev/null | tail -n 400 || true
+        xargs -0 -r grep -aEh "PHP Fatal error" 2>/dev/null | sort | tail -n 400 || true
         '''
 
         resultado = self.ejecutar_comando(comando)
