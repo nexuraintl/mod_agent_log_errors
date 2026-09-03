@@ -245,7 +245,7 @@ async def analizar_incidente(datos: DatosIncidente):
     - Búsqueda de logs (grep)
     - Diagnóstico con Gemini de cada log encontrado
     """
-    from datetime import datetime
+    from datetime import datetime, timedelta
     from uuid import uuid4
     from services.log_parser import ParseadorLogs
     from services.gemini_service import ServicioGemini
@@ -288,7 +288,29 @@ async def analizar_incidente(datos: DatosIncidente):
             entrada = parseador.parsear_linea(log_linea)
             if entrada:
                 logs_procesados.append(entrada)
-        
+
+        # La ventana de N horas del find aplica a la fecha de modificación del
+        # archivo, no a cada línea: los archivos se escriben de forma continua y
+        # el grep devuelve también errores viejos. Filtrar por el timestamp real
+        # de cada entrada.
+        umbral = datetime.now() - timedelta(hours=2)
+        parseados_total = len(logs_procesados)
+        logs_procesados = [e for e in logs_procesados if e.timestamp and e.timestamp >= umbral]
+
+        logger.info(
+            "analyze-incident entidad=%r logs_crudos=%d parseados=%d en_ventana=%d",
+            entidad, len(logs_fatales), parseados_total, len(logs_procesados),
+        )
+
+        if not logs_procesados:
+            return RespuestaIncidente(
+                ticket_id=str(datos.ticket_id),
+                entity=entidad,
+                logs_encontrados=0,
+                diagnosticos=[],
+                mensaje_resumen=f"No se encontraron errores fatales relacionados con '{entidad}' en las últimas 2 horas."
+            )
+
         # Estrategia de Diagnóstico
         if len(logs_procesados) > 10:
             # ESTRATEGIA MASIVA: Diagnóstico consolidado
@@ -336,12 +358,12 @@ async def analizar_incidente(datos: DatosIncidente):
             resumen_partes.append(f"\n\nRecomendación principal: {diagnosticos_resultado[0].diagnostico.recomendacion}")
             mensaje_resumen = "".join(resumen_partes)
         else:
-            mensaje_resumen = f"Se encontraron {len(logs_fatales)} logs pero no pudieron ser parseados correctamente."
-        
+            mensaje_resumen = f"Se encontraron {len(logs_procesados)} logs pero no pudieron ser parseados correctamente."
+
         return RespuestaIncidente(
             ticket_id=str(datos.ticket_id),
             entity=entidad,
-            logs_encontrados=len(logs_fatales),
+            logs_encontrados=len(logs_procesados),
             diagnosticos=diagnosticos_resultado,
             mensaje_resumen=mensaje_resumen
         )

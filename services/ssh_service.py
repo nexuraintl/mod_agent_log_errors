@@ -3,6 +3,7 @@ Servicio de conexión SSH.
 Gestiona la conexión al servidor remoto y la lectura de archivos de log.
 """
 import logging
+import unicodedata
 import paramiko
 from typing import Optional
 from config import obtener_configuracion
@@ -82,10 +83,11 @@ class ServicioSSH:
         Returns:
             Ruta completa del archivo más reciente.
         """
-        directorio = self._config.log_path
-        
-        # Buscar el archivo modificado más recientemente
-        comando = f"ls -t {directorio}/*.log 2>/dev/null | head -1"
+        directorio = self._config.log_path.rstrip("/")
+
+        # Buscar el archivo modificado más recientemente. Los logs por cliente
+        # se llaman *.error.log.<nodo>, no terminan en .log.
+        comando = f"ls -t {directorio}/*error.log* 2>/dev/null | head -1"
         resultado = self.ejecutar_comando(comando).strip()
         
         if not resultado:
@@ -146,27 +148,44 @@ class ServicioSSH:
         Returns:
             Lista de líneas de log que contienen PHP Fatal error.
         """
-        directorio = self._config.log_path
-        
-        # 1. cd al directorio
-        # 2. MATCH POR ENTIDAD PRIMERO: busca archivos que contengan la entidad en su nombre
-        # 3. MATCH TIPO ARCHIVO: asegura que sean error.log
-        # 4. MATCH TIEMPO: modificados en últimas N horas
+        # LOG_PATH es el directorio con los error logs por cliente
+        # (ej: /home/logs/error_log). Los archivos se llaman
+        # www.<token>.gov.co.error.log.<nodo>
+        directorio = self._config.log_path.rstrip("/")
+
+        # Normalizar la entidad al token que aparece en el nombre del archivo:
+        # sin acentos, en minúscula, quedándonos con la última palabra
+        # ("Alcaldía de Floridablanca" -> "floridablanca").
+        token = (
+            unicodedata.normalize("NFKD", entidad or "")
+            .encode("ascii", "ignore")
+            .decode()
+            .lower()
+            .strip()
+        )
+        token = token.split()[-1] if token else ""
+        if not token:
+            logger.warning("buscar_fatal_errors: entidad vacía o no normalizable: %r", entidad)
+            return []
+
+        # 1. cd al directorio de logs por cliente
+        # 2. MATCH POR ENTIDAD: archivos que contengan el token en su nombre
+        # 3. MATCH TIPO ARCHIVO: *error.log*
+        # 4. MATCH TIEMPO: modificados en las últimas N horas
         # 5. EXCLUSIÓN: ignora preproduccion
-        # 6. CONTENIDO: busca "PHP Fatal error" solo en los archivos encontrados
+        # 6. CONTENIDO: "PHP Fatal error" (regex extendida) en los archivos hallados
         comando = f'''
-        cd "$(dirname "{directorio}")" && \
-        find . -type f -newermt "$(date -d '{horas} hour ago')" \
-            -iname "*{entidad}*" \
-            -name "*error.log*" \
-            -not -path "./preproduccion/*" \
+        cd "{directorio}" 2>/dev/null && \
+        find . -maxdepth 2 -type f -newermt "$(date -d '{horas} hour ago')" \
+            -iname "*{token}*" \
+            -iname "*error.log*" \
+            -not -path "*preprod*" \
             -print0 2>/dev/null | \
-        xargs -0 grep -a "PHP Fatal error|error" 2>/dev/null || true
+        xargs -0 -r grep -aEH "PHP Fatal error" 2>/dev/null | tail -n 400 || true
         '''
 
-        
         resultado = self.ejecutar_comando(comando)
-        
+
         # Filtrar líneas vacías y retornar lista
         lineas = [linea.strip() for linea in resultado.split('\n') if linea.strip()]
         return lineas
