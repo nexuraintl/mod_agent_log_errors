@@ -103,6 +103,7 @@ class RespuestaIncidente(BaseModel):
     logs_encontrados: int
     diagnosticos: list[RegistroDiagnostico]
     mensaje_resumen: str  # Resumen consolidado para Znuny
+    logs_consultados: list[str] = []  # Líneas crudas usadas como soporte (verbatim)
 
 # ==================== Endpoints ====================
 
@@ -371,12 +372,28 @@ async def analizar_incidente(datos: DatosIncidente):
         else:
             mensaje_resumen = f"Se encontraron {len(logs_procesados)} logs pero no pudieron ser parseados correctamente."
 
+        # Líneas crudas que respaldan el diagnóstico (verbatim, dedup, máx 5).
+        logs_consultados = []
+        vistos = set()
+        for e in logs_procesados:
+            linea = (e.raw or "").strip()
+            if not linea:
+                continue
+            clave = linea[:200]
+            if clave in vistos:
+                continue
+            vistos.add(clave)
+            logs_consultados.append(linea if len(linea) <= 800 else linea[:800] + " […]")
+            if len(logs_consultados) >= 5:
+                break
+
         return RespuestaIncidente(
             ticket_id=str(datos.ticket_id),
             entity=entidad,
             logs_encontrados=len(logs_procesados),
             diagnosticos=diagnosticos_resultado,
-            mensaje_resumen=mensaje_resumen
+            mensaje_resumen=mensaje_resumen,
+            logs_consultados=logs_consultados
         )
         
     except Exception as e:
