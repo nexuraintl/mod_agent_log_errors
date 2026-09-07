@@ -372,10 +372,11 @@ async def analizar_incidente(datos: DatosIncidente):
         else:
             mensaje_resumen = f"Se encontraron {len(logs_procesados)} logs pero no pudieron ser parseados correctamente."
 
-        # Líneas crudas que respaldan el diagnóstico (verbatim, dedup, máx 5).
+        # Líneas crudas que respaldan el diagnóstico (verbatim, dedup, las 5 más
+        # recientes; logs_procesados viene en orden cronológico ascendente).
         logs_consultados = []
         vistos = set()
-        for e in logs_procesados:
+        for e in reversed(logs_procesados):
             linea = (e.raw or "").strip()
             if not linea:
                 continue
@@ -386,6 +387,7 @@ async def analizar_incidente(datos: DatosIncidente):
             logs_consultados.append(linea if len(linea) <= 800 else linea[:800] + " […]")
             if len(logs_consultados) >= 5:
                 break
+        logs_consultados.reverse()  # de vuelta a orden cronológico
 
         return RespuestaIncidente(
             ticket_id=str(datos.ticket_id),
